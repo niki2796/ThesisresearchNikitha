@@ -7,11 +7,13 @@ from sklearn.metrics import confusion_matrix, recall_score, accuracy_score, prec
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
 from tensorflow.keras import backend as K
+from sklearn import preprocessing
+from threshold_calc import *
 from scipy import stats
 LABELS = ["Normal","Anomaly"]
 
-tf.random.set_seed(1121)
-np.random.seed(1121)
+tf.random.set_seed(2022)
+np.random.seed(2022)
 
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     #input Layer
@@ -89,6 +91,7 @@ def autoenc_predict(autoencoder,tx, ty, threshold_fixed= 0.65):
     '''
 
     #evaluation
+    threshold_fixed = get_optimal_threshold(ty, score, steps=100, return_metrics=False, flag = "f1_score")
     pred_y = [1 if e > threshold_fixed else 0 for e in error_df.Reconstruction_error.values]
     error_df['pred'] =pred_y
     conf_matrix = confusion_matrix(error_df.True_class, pred_y)
@@ -99,7 +102,7 @@ def autoenc_predict(autoencoder,tx, ty, threshold_fixed= 0.65):
     #plt.xlabel('Predicted class')
     #roc = roc_auc_score(ty, pred_y, average=None)
     roc = roc_auc_score(ty, score, average=None)
-    return roc, score, error_df
+    return roc, score, error_df, threshold_fixed
 
 
 def my_mse(tx, test_x_predictions, return_mean = False):
@@ -191,25 +194,21 @@ def loss_4(a,b, return_mean=True):
 
 if __name__ == '__main__':
 
-    bag = 1000 #Remove bagging as data set is small
     num_runs = 1  # no. of ensembles
     #num_parallel = 10
     start = 3
-    end = 12
+    end = 6
     skip = 3
-    a = np.load('cardio.npz')
-    x = a['x']
-    np.random.shuffle(x)
-    x = x[:bag]
-    y = np.zeros(len(x))
-    tx = a['tx']
-    ty = a['ty']
-    nb_epoch = 100
+    a = np.load('satellite.npz')
+    x = a['x'].astype(np.float32)
+    x = preprocessing.normalize(x, norm='l2')
+    bag = len(x)
+    nb_epoch = 200
     batch_size = 64
     input_dim = x.shape[1]
-    encoding_dim = 14
+    encoding_dim = 18
     hidden_dim_1 = int(encoding_dim / 2) #
-    hidden_dim_2=4
+    hidden_dim_2= 8
     learning_rate = 1e-7
     tr_loss = [loss_1, loss_1, loss_2, loss_3, loss_4]
     pr_loss = [my_mse, loss_1, my_mse, my_mse, my_mse]
@@ -229,6 +228,14 @@ if __name__ == '__main__':
             for i in range(num_runs):
 
                 print('Run: ',i)
+                x = a['x'].astype(np.float32)
+                x = preprocessing.normalize(x, norm='l2')
+                np.random.shuffle(x)
+                x = x[:bag]
+                y = np.zeros(len(x))
+                tx = a['tx'].astype(np.float32)
+                tx = preprocessing.normalize(tx, norm='l2')
+                ty = a['ty']
 
                 '''
                 plt.plot(history['loss'], linewidth=2, label='Train')
@@ -242,7 +249,7 @@ if __name__ == '__main__':
                 '''
                 autoencoder = autoenc_train(training_loss, x, nb_epoch, batch_size,num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2)
                 #reconstruct
-                roc, score, error_df = autoenc_predict(autoencoder,tx, ty, threshold_fixed= 0.65)
+                roc, score, error_df, threshold_fixed = autoenc_predict(autoencoder,tx, ty, predict_loss)
                 scores.append(score)
                 rocs.append(roc)
 
@@ -265,19 +272,9 @@ if __name__ == '__main__':
                 '''
             scores = np.array(scores)
             score = np.mean(scores, axis = 0)
-
-            threshold_fixed = 0.65
-            pred_y = [1 if e > threshold_fixed else 0 for e in error_df.Reconstruction_error.values]
-            error_df['pred'] =pred_y
-            conf_matrix = confusion_matrix(error_df.True_class, pred_y)
-            '''
-            plt.figure(figsize=(4, 4))
-            sns.heatmap(conf_matrix, xticklabels=LABELS, yticklabels=LABELS, annot=True, fmt="d");
-            plt.title("Confusion matrix")
-            plt.ylabel('True class')
-            plt.xlabel('Predicted class')
-            plt.savefig('cm.png')
-            '''
+            #pred_y = [1 if e > threshold_fixed else 0 for e in error_df.Reconstruction_error.values]
+            #error_df['pred'] =pred_y
+            #conf_matrix = confusion_matrix(error_df.True_class, pred_y)
             #roc = roc_auc_score(ty, score, average=None)
             roc = np.mean(np.array(rocs))
             print(roc)
@@ -301,40 +298,14 @@ if __name__ == '__main__':
             plt.show()
             '''
         count += 1
-
-    np.save('stored_val.npy', store_values)
-    x_ax = np.array([i for i in range(start, end, skip)])
-    fig = plt.figure()
-    for i in range(0, store_values.shape[1]):
-        plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
-
-    plt.title('ROCs of different losses vs number of ensembles')
-    plt.xlabel('Number of Ensembles')
-    plt.ylabel('ROC')
-    plt.legend()
-    plt.show()
-    plt.savefig('loss_ens.png')
-    print("loss1-loss2",stats.ttest_ind(store_values[:, 0],store_values[:, 1]).pvalue)
-    print(stats.ttest_ind(store_values[:, 0],store_values[:, 2]).pvalue)
-    print(stats.ttest_ind(store_values[:, 0],store_values[:, 3]).pvalue)
-    print(stats.ttest_ind(store_values[:, 0],store_values[:, 4]).pvalue)
-    print(stats.ttest_ind(store_values[:, 1],store_values[:, 2]).pvalue)
-    print(stats.ttest_ind(store_values[:, 1],store_values[:, 3]).pvalue)
-    print(stats.ttest_ind(store_values[:, 1],store_values[:, 4]).pvalue)
-    print(stats.ttest_ind(store_values[:, 2],store_values[:, 3]).pvalue)
-    print(stats.ttest_ind(store_values[:, 2],store_values[:, 4]).pvalue)
-    print(stats.ttest_ind(store_values[:, 3],store_values[:, 4]).pvalue)
-    d = {"loss1-loss2": [stats.ttest_ind(store_values[:, 0],store_values[:, 1]).pvalue],
-         "loss1-loss3": [stats.ttest_ind(store_values[:, 0],store_values[:, 2]).pvalue],
-         "loss1-loss4": [stats.ttest_ind(store_values[:, 0],store_values[:, 3]).pvalue],
-         "loss1-loss5": [stats.ttest_ind(store_values[:, 0],store_values[:, 4]).pvalue],
-         "loss2-loss3": [stats.ttest_ind(store_values[:, 1],store_values[:, 2]).pvalue],
-         "loss2-loss4": [stats.ttest_ind(store_values[:, 1],store_values[:, 3]).pvalue],
-         "loss2-loss5": [stats.ttest_ind(store_values[:, 1],store_values[:, 4]).pvalue],
-         "loss3-loss4": [stats.ttest_ind(store_values[:, 2],store_values[:, 3]).pvalue],
-         "loss3-loss5": [stats.ttest_ind(store_values[:, 2],store_values[:, 4]).pvalue],
-         "loss4-loss5": [stats.ttest_ind(store_values[:, 3],store_values[:, 4]).pvalue]
-         }
-
-    df = pd.DataFrame(data=d)
-    df.to_csv('significance_test_result', index=False)
+        np.save('stored_val.npy', store_values)
+        x_ax = np.array([i for i in range(start, end, skip)])
+        fig = plt.figure()
+        for i in range(0, store_values.shape[1]):
+            plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
+        plt.title('ROCs of different losses vs number of ensembles')
+        plt.xlabel('Number of Ensembles')
+        plt.ylabel('ROC')
+        plt.legend()
+        plt.show()
+        plt.savefig('loss_ens.png')

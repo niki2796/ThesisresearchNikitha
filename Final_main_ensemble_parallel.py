@@ -7,8 +7,11 @@ from sklearn.metrics import confusion_matrix, recall_score, accuracy_score, prec
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
 from tensorflow.keras import backend as K
+from sklearn import preprocessing
 from threshold_calc import *
 from scipy import stats
+from tqdm import tqdm
+import tensorflow_probability as tfp
 
 LABELS = ["Normal","Anomaly"]
 
@@ -75,6 +78,13 @@ def autoenc_predict(autoencoder,tx, ty, predict_loss):
     pred_y = [1 if e > threshold_fixed else 0 for e in error_df.Reconstruction_error.values]
     error_df['pred'] =pred_y
     conf_matrix = confusion_matrix(error_df.True_class, pred_y)
+    plt.figure(figsize=(4, 4))
+    sns.heatmap(conf_matrix, xticklabels=LABELS, yticklabels=LABELS, annot=True, fmt="d");
+    plt.title("Confusion matrix")
+    plt.ylabel('True class')
+    plt.xlabel('Predicted class')
+    plt.savefig('cm.png')
+    plt.close('all')
     roc = roc_auc_score(ty, score, average=None)
     return roc, score, error_df, threshold_fixed
 
@@ -113,6 +123,17 @@ def min_loss_1(a,b, return_mean=True):
     if return_mean == False:
         return K.min(K.mean(q, axis = -1), axis = 0)
     return K.mean(K.min(K.mean(q, axis = -1), axis = 0))
+
+def median_loss_1(a,b, return_mean=True):
+    q=b
+    pd=[i for i in range(len(q.shape))]
+    pd.remove(pd[-1])
+    pd.insert(0,len(pd))
+    q=K.permute_dimensions(q,tuple(pd))
+    q=(q-a)**2
+    if return_mean == False:
+        return tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0)
+    return K.mean(tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0))
 
 def s_loss_1(a, b):
     q = b
@@ -183,32 +204,34 @@ def loss_4(a,b, return_mean=True):
 
 
 if __name__ == '__main__':
-    bag = 250 #Remove bagging as data set is small
     num_runs = 10 # no. of roc runs
     start = 3
-    end = 60
+    end = 6
     skip = 3
     nb_epoch = 100
     batch_size = 64
-    data_set = 'qsar-biodeg.npz'
+    data_set = 'gas-drift.npz'
     a = np.load(data_set)
     x = a['x'].astype(np.float32)
+    x = preprocessing.normalize(x, norm='l2')
+    bag = len(x)
     input_dim = x.shape[1]
     encoding_dim = 14
-    hidden_dim_1 = int(encoding_dim / 2) #
+    hidden_dim_1 = int(encoding_dim / 2)
     hidden_dim_2 = 4
     learning_rate = 1e-7
-
-    tr_loss = [loss_1, loss_1,  max_loss_1,  max_loss_1, min_loss_1, min_loss_1, loss_2, loss_3, loss_4]
-    pr_loss = [my_mse, loss_1,  max_loss_1, my_mse, min_loss_1, my_mse, my_mse, my_mse, my_mse]
+    #tr_loss = [median_loss_1, median_loss_1]
+    #pr_loss = [my_mse, median_loss_1]
+    tr_loss = [loss_1, loss_1,  max_loss_1,  max_loss_1, min_loss_1, min_loss_1, median_loss_1, median_loss_1, loss_2, loss_3, loss_4]
+    pr_loss = [loss_1, my_mse,  max_loss_1, my_mse, min_loss_1, my_mse, median_loss_1, my_mse, my_mse, my_mse, my_mse]
     store_values = np.zeros([int((end-start)/skip),len(tr_loss)])
 
     count = 0
-    for itr in range(start, end, skip):
+    for itr in tqdm(range(start, end, skip)):
         num_parallel = itr
         print("No. of parallel auto encoders =", itr)
 
-        for itr_loss in range(0, len(tr_loss)):
+        for itr_loss in tqdm(range(0, len(tr_loss)),leave=False):
             training_loss = tr_loss[itr_loss]
             predict_loss = pr_loss[itr_loss]
 
@@ -217,10 +240,12 @@ if __name__ == '__main__':
             for i in range(num_runs):
                 print('Run: ',i)
                 x = a['x'].astype(np.float32)
+                x = preprocessing.normalize(x, norm='l2')
                 np.random.shuffle(x)
                 x = x[:bag]
                 y = np.zeros(len(x))
                 tx = a['tx'].astype(np.float32)
+                tx = preprocessing.normalize(tx, norm='l2')
                 ty = a['ty']
                 autoencoder = autoenc_train(training_loss, x, nb_epoch, batch_size,num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2)
                 #reconstruct
@@ -237,26 +262,26 @@ if __name__ == '__main__':
             print(roc)
             store_values[count][itr_loss] = roc
         count += 1
-    np.save('stored_val.npy', store_values)
-    x_ax = np.array([i for i in range(start, end, skip)])
-    fig = plt.figure()
-    for i in range(0, store_values.shape[1]):
-        plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
-    plt.title('ROCs of different losses vs number of ensembles')
-    plt.xlabel('Number of Ensembles')
-    plt.ylabel('ROC')
-    plt.legend()
-    plt.show()
-    plt.savefig('loss_ens.png')
-    fig2 = plt.figure()
-    for i in range(0, 6):
-        plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
-    plt.title('ROC comparison of Multi dimensional MSE loss AGAINST Max MSE loss')
-    plt.xlabel('Number of Ensembles')
-    plt.ylabel('ROC')
-    plt.legend()
-    plt.show()
-    plt.savefig('loss_ens_2.png')
+        np.save('stored_val.npy', store_values)
+        x_ax = np.array([i for i in range(start, end, skip)])
+        fig = plt.figure()
+        for i in range(0, store_values.shape[1]):
+            plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
+        plt.title('ROCs of different losses vs number of ensembles')
+        plt.xlabel('Number of Ensembles')
+        plt.ylabel('ROC')
+        plt.legend()
+        plt.show()
+        plt.savefig('loss_ens.png')
+        fig2 = plt.figure()
+        for i in range(0, 8):
+            plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
+        plt.title('ROC comparison of Multi dimensional MSE loss AGAINST Max MSE loss')
+        plt.xlabel('Number of Ensembles')
+        plt.ylabel('ROC')
+        plt.legend()
+        plt.show()
+        plt.savefig('loss_ens_2.png')
     a_dict = {}
 
     for i in range(0, store_values.shape[1]):
@@ -269,5 +294,5 @@ if __name__ == '__main__':
                    '.'
                    + str(pr_loss[j].__name__)] = [stats.ttest_ind(store_values[:, i],store_values[:, j]).pvalue]
     pd.DataFrame.from_dict(a_dict, orient='index')
-    df.to_csv('significance_test_result', index=False)
+    a_dict.to_csv('significance_test_result', index=False)
 
