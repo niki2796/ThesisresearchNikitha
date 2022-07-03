@@ -12,8 +12,8 @@ from threshold_calc import *
 from scipy import stats
 LABELS = ["Normal","Anomaly"]
 
-tf.random.set_seed(2022)
-np.random.seed(2022)
+tf.random.set_seed(234234234)
+np.random.seed(234234234)
 
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     #input Layer
@@ -199,17 +199,17 @@ if __name__ == '__main__':
     start = 3
     end = 6
     skip = 3
-    a = np.load('satellite.npz')
+    a = np.load('qsar-biodeg.npz')
     x = a['x'].astype(np.float32)
     x = preprocessing.normalize(x, norm='l2')
     bag = len(x)
-    nb_epoch = 200
-    batch_size = 64
+    nb_epoch = 100
+    batch_size = 16
     input_dim = x.shape[1]
-    encoding_dim = 18
+    encoding_dim = 32 #15
     hidden_dim_1 = int(encoding_dim / 2) #
-    hidden_dim_2= 8
-    learning_rate = 1e-7
+    hidden_dim_2= 8 #11
+    learning_rate = 1e-6
     tr_loss = [loss_1, loss_1, loss_2, loss_3, loss_4]
     pr_loss = [my_mse, loss_1, my_mse, my_mse, my_mse]
     store_values = np.zeros([int((end-start)/skip),len(tr_loss)])

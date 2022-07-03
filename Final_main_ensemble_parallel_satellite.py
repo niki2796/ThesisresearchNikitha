@@ -15,8 +15,8 @@ import tensorflow_probability as tfp
 
 LABELS = ["Normal","Anomaly"]
 
-tf.random.set_seed(12312)
-np.random.seed(12312)
+tf.random.set_seed(234234234)
+np.random.seed(234234234)
 
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     input_layer = tf.keras.layers.Input(shape=(input_dim, ))
@@ -206,18 +206,18 @@ if __name__ == '__main__':
     start = 3
     end = 60
     skip = 3
-    nb_epoch = 200
-    batch_size = 64
-    data_set = 'gas-drift.npz'
+    nb_epoch = 100
+    batch_size = 8
+    data_set = 'satellite.npz'
     a = np.load(data_set)
     x = a['x'].astype(np.float32)
     x = preprocessing.normalize(x, norm='l2')
     bag = len(x)
     input_dim = x.shape[1]
-    encoding_dim = 18
+    encoding_dim = 14
     hidden_dim_1 = int(encoding_dim / 2) #
-    hidden_dim_2 = 8
-    learning_rate = 1e-7
+    hidden_dim_2 = 4
+    learning_rate = 1e-6
     #tr_loss = [median_loss_1, median_loss_1]
     #pr_loss = [my_mse, median_loss_1]
     tr_loss = [loss_1, loss_1,  max_loss_1,  max_loss_1, min_loss_1, min_loss_1, median_loss_1, median_loss_1, loss_2, median_loss_2, loss_3, loss_4]

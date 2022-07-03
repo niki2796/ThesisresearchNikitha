@@ -10,8 +10,8 @@ from threshold_calc import *
 
 LABELS = ["Normal","Anomaly"]
 
-bag =500
-num_runs = 3 #no. of ensembles
+
+num_runs = 10 #no. of ensembles
 scores = []
 rocs = []
 
@@ -19,19 +19,20 @@ for i in range(num_runs):
 
     print('Run: ',i)
 
-    a = np.load('satellite.npz')
+    a = np.load('qsar-biodeg.npz')
     x = a['x']
     np.random.shuffle(x)
+    bag =len(x)
     x = x[:bag]
     y = np.zeros(len(x))
     tx = a['tx']
     ty = a['ty']
-    nb_epoch = 100
+    nb_epoch = 200
     batch_size = 64
     input_dim = x.shape[1]
-    encoding_dim = 14
+    encoding_dim = 15
     hidden_dim_1 = int(encoding_dim / 2) #
-    hidden_dim_2=4
+    hidden_dim_2 = 11
     learning_rate = 1e-7
 
     def autoencoder_model():

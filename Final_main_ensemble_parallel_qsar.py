@@ -135,6 +135,7 @@ def median_loss_1(a,b, return_mean=True):
         return tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0)
     return K.mean(tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0))
 
+
 def loss_2(a,b, return_mean=True):
     q=b
     pd=[i for i in range(len(q.shape))]
@@ -208,15 +209,15 @@ if __name__ == '__main__':
     skip = 3
     nb_epoch = 200
     batch_size = 64
-    data_set = 'gas-drift.npz'
+    data_set = 'qsar-biodeg.npz'
     a = np.load(data_set)
     x = a['x'].astype(np.float32)
     x = preprocessing.normalize(x, norm='l2')
     bag = len(x)
     input_dim = x.shape[1]
-    encoding_dim = 18
+    encoding_dim = 15
     hidden_dim_1 = int(encoding_dim / 2) #
-    hidden_dim_2 = 8
+    hidden_dim_2 = 11
     learning_rate = 1e-7
     #tr_loss = [median_loss_1, median_loss_1]
     #pr_loss = [my_mse, median_loss_1]
@@ -301,8 +302,8 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
         plt.savefig('loss2_comparison.png')
-    a_dict = {}
 
+    a_dict = {}
     for i in range(0, store_values.shape[1]):
         for j in range(i+1, store_values.shape[1]):
             a_dict[str(tr_loss[i].__name__)
