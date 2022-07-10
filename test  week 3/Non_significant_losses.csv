@@ -1,0 +1,9 @@
+,0
+loss_1.my_mse-min_loss_1.min_loss_1,0.057414955332224384
+loss_1.my_mse-median_loss_1.median_loss_1,0.19352020766810105
+max_loss_1.max_loss_1-max_loss_1.my_mse,0.9127731068563407
+min_loss_1.min_loss_1-median_loss_1.median_loss_1,0.2855889958210057
+min_loss_1.min_loss_1-loss_2.my_mse,0.20913295289402403
+min_loss_1.min_loss_1-loss_4.my_mse,0.9146231092063124
+median_loss_1.median_loss_1-loss_4.my_mse,0.07387973443938047
+loss_2.my_mse-loss_4.my_mse,0.051017069578849744

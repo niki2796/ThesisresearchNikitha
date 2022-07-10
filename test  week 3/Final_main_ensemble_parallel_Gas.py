@@ -15,8 +15,8 @@ import tensorflow_probability as tfp
 
 LABELS = ["Normal","Anomaly"]
 
-tf.random.set_seed(1121)
-np.random.seed(1121)
+tf.random.set_seed(12312)
+np.random.seed(12312)
 
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     input_layer = tf.keras.layers.Input(shape=(input_dim, ))
@@ -88,11 +88,8 @@ def autoenc_predict(autoencoder,tx, ty, predict_loss):
     roc = roc_auc_score(ty, score, average=None)
     return roc, score, error_df, threshold_fixed
 
-def my_mse(tx, test_x_predictions, return_mean = False, parallel_loss = True):
-    if parallel_loss == False:
-        return np.mean((test_x_predictions - tx) ** 2, axis=-1)
+def my_mse(tx, test_x_predictions, return_mean = False):
     return np.mean((np.mean(test_x_predictions, axis=-1) - tx) ** 2, axis=-1)
-
 
 def loss_1(a,b, return_mean=True):
     q=b
@@ -155,10 +152,10 @@ def median_loss_2(a,b, return_mean=True):
     pd.remove(pd[-1])
     pd.insert(0,len(pd))
     q=K.permute_dimensions(q,tuple(pd))
-    q=K.square(a - tfp.stats.percentile(q, q=50, axis = 0))
+    q=K.square(a -  K.mean(q, axis=0))
     if return_mean == False:
-        return K.mean(q, axis=-1)
-    return K.mean(q)
+        return tfp.stats.percentile(q, q=50, axis = -1)
+    return K.mean(tfp.stats.percentile(q, q=50, axis = -1))
 
 def loss_3(a,b):
     q=b
@@ -209,22 +206,22 @@ if __name__ == '__main__':
     start = 3
     end = 60
     skip = 3
-    nb_epoch = 100
+    nb_epoch = 200
     batch_size = 64
-    data_set = 'cardio.npz'
+    data_set = 'gas-drift.npz'
     a = np.load(data_set)
     x = a['x'].astype(np.float32)
     x = preprocessing.normalize(x, norm='l2')
     bag = len(x)
     input_dim = x.shape[1]
-    encoding_dim = 14
-    hidden_dim_1 = int(encoding_dim / 2)
-    hidden_dim_2 = 4
+    encoding_dim = 18
+    hidden_dim_1 = int(encoding_dim / 2) #
+    hidden_dim_2 = 8
     learning_rate = 1e-7
     #tr_loss = [median_loss_1, median_loss_1]
     #pr_loss = [my_mse, median_loss_1]
-    tr_loss = [loss_1,  max_loss_1, min_loss_1, median_loss_1, loss_2, median_loss_2, loss_3, loss_4]
-    pr_loss = [my_mse, my_mse, my_mse, my_mse,  my_mse, my_mse, my_mse, my_mse]
+    tr_loss = [loss_1, loss_1,  max_loss_1,  max_loss_1, min_loss_1, min_loss_1, median_loss_1, median_loss_1, loss_2, median_loss_2, loss_3, loss_4]
+    pr_loss = [loss_1, my_mse,  max_loss_1, my_mse, min_loss_1, my_mse, median_loss_1, my_mse,  my_mse, my_mse, my_mse, my_mse]
     store_values = np.zeros([int((end-start)/skip),len(tr_loss)])
     store_sd = np.zeros([int((end-start)/skip),len(tr_loss)])
 
@@ -315,6 +312,6 @@ if __name__ == '__main__':
                    + str(tr_loss[j].__name__) +
                    '.'
                    + str(pr_loss[j].__name__)] = [stats.ttest_ind(store_values[:, i],store_values[:, j]).pvalue]
-    p_sig = pd.DataFrame.from_dict(a_dict, orient='index')
-    p_sig.to_csv('significance_test_result.csv', index=False)
-    p_sig.to_csv('significance_test_result.csv', index=False)
+    pd.DataFrame.from_dict(a_dict, orient='index')
+    a_dict.to_csv('significance_test_result.csv', index=False)
+

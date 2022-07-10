@@ -1,0 +1,15 @@
+,0
+loss_1.loss_1-loss_1.my_mse,0.5069349229759978
+loss_1.loss_1-max_loss_1.max_loss_1,0.513661338688965
+loss_1.loss_1-min_loss_1.my_mse,0.5939367890728693
+loss_1.loss_1-loss_3.my_mse,0.37964886677810994
+loss_1.my_mse-max_loss_1.max_loss_1,0.17134875854728723
+loss_1.my_mse-min_loss_1.my_mse,0.9844176700353315
+loss_1.my_mse-loss_3.my_mse,0.9674182598000733
+loss_1.my_mse-loss_4.my_mse,0.0514689655765072
+max_loss_1.max_loss_1-min_loss_1.my_mse,0.32965370291789264
+max_loss_1.my_mse-min_loss_1.my_mse,0.0665945951974035
+max_loss_1.my_mse-median_loss_1.median_loss_1,0.8890762055973385
+min_loss_1.my_mse-median_loss_1.median_loss_1,0.06351128265051977
+min_loss_1.my_mse-loss_3.my_mse,0.9932148716853617
+min_loss_1.my_mse-loss_4.my_mse,0.16811694255861817

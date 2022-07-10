@@ -10,8 +10,9 @@ from threshold_calc import *
 
 LABELS = ["Normal","Anomaly"]
 
-
-num_runs = 10 #no. of ensembles
+tf.random.set_seed(12312)
+np.random.seed(12312)
+num_runs = 40 #no. of ensembles
 scores = []
 rocs = []
 
@@ -149,7 +150,7 @@ for i in range(num_runs):
 scores = np.array(scores)
 score = np.mean(scores, axis = 0)
 
-threshold_fixed = 0.65
+threshold_fixed = get_optimal_threshold(ty, score, steps=100, return_metrics=False, flag = "f1_score")
 pred_y = [1 if e > threshold_fixed else 0 for e in error_df.Reconstruction_error.values]
 error_df['pred'] =pred_y
 conf_matrix = confusion_matrix(error_df.True_class, pred_y)
