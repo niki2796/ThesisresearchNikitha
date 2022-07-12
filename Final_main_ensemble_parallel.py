@@ -71,6 +71,11 @@ def autoenc_train(training_loss, x, nb_epoch, batch_size,num_parallel, input_dim
 
 def autoenc_predict(autoencoder,tx, ty, predict_loss):
     test_x_predictions = autoencoder.predict(tx)
+    parallel_rocs = []
+    for ind in range(test_x_predictions.shape[-1]):
+        score_each = predict_loss(tx, test_x_predictions[:,:,ind], return_mean=False, parallel_loss= False)
+        parallel_rocs.append(roc_auc_score(ty, score_each, average=None))
+    parallel_rocs = np.array(parallel_rocs)
     score = predict_loss(tx, test_x_predictions, return_mean=False)
     error_df = pd.DataFrame({'Reconstruction_error': score, 'True_class': ty})
     #evaluation
@@ -86,7 +91,7 @@ def autoenc_predict(autoencoder,tx, ty, predict_loss):
     plt.savefig('cm.png')
     plt.close('all')
     roc = roc_auc_score(ty, score, average=None)
-    return roc, score, error_df, threshold_fixed
+    return roc, score, error_df, threshold_fixed, parallel_rocs
 
 def my_mse(tx, test_x_predictions, return_mean = False, parallel_loss = True):
     if parallel_loss == False:
@@ -227,6 +232,7 @@ if __name__ == '__main__':
     pr_loss = [my_mse, my_mse, my_mse, my_mse,  my_mse, my_mse, my_mse, my_mse]
     store_values = np.zeros([int((end-start)/skip),len(tr_loss)])
     store_sd = np.zeros([int((end-start)/skip),len(tr_loss)])
+    store_sd_par = np.zeros([int((end - start) / skip), len(tr_loss), num_runs])
 
     count = 0
     for itr in tqdm(range(start, end, skip)):
@@ -239,6 +245,7 @@ if __name__ == '__main__':
 
             scores = []
             rocs = []
+            std_roc_par = []
             for i in range(num_runs):
                 print('Run: ',i)
                 x = a['x'].astype(np.float32)
@@ -251,7 +258,8 @@ if __name__ == '__main__':
                 ty = a['ty']
                 autoencoder = autoenc_train(training_loss, x, nb_epoch, batch_size,num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2)
                 #reconstruct
-                roc, score, error_df, threshold_fixed = autoenc_predict(autoencoder,tx, ty, predict_loss)
+                roc, score, error_df, threshold_fixed, parallel_rocs = autoenc_predict(autoencoder,tx, ty, predict_loss)
+                std_roc_par.append(np.std(parallel_rocs))
                 scores.append(score)
                 rocs.append(roc)
             scores = np.array(scores)
@@ -260,15 +268,38 @@ if __name__ == '__main__':
             #error_df['pred'] =pred_y
             #conf_matrix = confusion_matrix(error_df.True_class, pred_y)
             #roc = roc_auc_score(ty, score, average=None)
+            std_roc_par_array = np.array(std_roc_par)
             roc = np.mean(np.array(rocs))
             print(roc)
             roc_sd = np.std(np.array(rocs))
             store_values[count][itr_loss] = roc
             store_sd[count][itr_loss] = roc_sd
+            store_sd_par[count][itr_loss] = std_roc_par_array
         count += 1
         np.save('stored_val.npy', store_values)
         np.save('stored_sd.npy', store_sd)
+        np.save('stored_sd_par.npy', store_sd_par)
         x_ax = np.array([i for i in range(start, end, skip)])
+
+
+        fig, axs = plt.subplots(4,2)
+        i_ind = 0
+        j_ind = 0
+        for i in range(store_sd_par.shape[1]):
+            for j in range(store_sd_par.shape[-1]):
+                axs[i_ind,j_ind].plot(x_ax, store_sd_par[:,i,j])
+            axs[i_ind, j_ind].set_title(str(tr_loss[i].__name__) )
+            axs[i_ind, j_ind].set(xlabel = 'Number of Ensembles')
+            i_ind += 1
+            if i_ind == 4:
+                j_ind += 1
+                i_ind = 0
+        for ax in axs.flat:
+            ax.label_outer()
+        fig.suptitle('Number of Ensembles vs Parallel ROC Std')
+        fig.tight_layout()
+        fig.savefig('std_par_roc.png')
+
         fig = plt.figure()
         for i in range(0, store_values.shape[1]):
             plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
@@ -288,7 +319,7 @@ if __name__ == '__main__':
         plt.show()
         plt.savefig('ROC_SD.png')
         fig2 = plt.figure()
-        for i in range(0, 8):
+        for i in range(0, 4):
             plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
         plt.title('ROC comparison of Multi dimensional MSE loss AGAINST Max MSE loss')
         plt.xlabel('Number of Ensembles')
@@ -296,7 +327,7 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
         plt.savefig('loss1_comparison.png')
-        for i in range(8, 10):
+        for i in range(4, 6):
             plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
         plt.title('ROC comparison of Multi dimensional MSE loss AGAINST Max MSE loss')
         plt.xlabel('Number of Ensembles')
