@@ -15,8 +15,8 @@ import tensorflow_probability as tfp
 
 LABELS = ["Normal","Anomaly"]
 
-tf.random.set_seed(1121)
-np.random.seed(1121)
+tf.random.set_seed(12312)
+np.random.seed(12312)
 
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     input_layer = tf.keras.layers.Input(shape=(input_dim, ))
@@ -98,7 +98,6 @@ def my_mse(tx, test_x_predictions, return_mean = False, parallel_loss = True):
         return np.mean((test_x_predictions - tx) ** 2, axis=-1)
     return np.mean((np.mean(test_x_predictions, axis=-1) - tx) ** 2, axis=-1)
 
-
 def loss_1(a,b, return_mean=True):
     q=b
     pd=[i for i in range(len(q.shape))]
@@ -142,6 +141,7 @@ def median_loss_1(a,b, return_mean=True):
     if return_mean == False:
         return tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0)
     return K.mean(tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0))
+
 
 def loss_2(a,b, return_mean=True):
     q=b
@@ -214,17 +214,17 @@ if __name__ == '__main__':
     start = 3
     end = 60
     skip = 3
-    nb_epoch = 100
+    nb_epoch = 200
     batch_size = 64
-    data_set = 'cardio.npz'
+    data_set = 'qsar-biodeg.npz'
     a = np.load(data_set)
     x = a['x'].astype(np.float32)
     x = preprocessing.normalize(x, norm='l2')
     bag = len(x)
     input_dim = x.shape[1]
-    encoding_dim = 14
-    hidden_dim_1 = int(encoding_dim / 2)
-    hidden_dim_2 = 4
+    encoding_dim = 15
+    hidden_dim_1 = int(encoding_dim / 2) #
+    hidden_dim_2 = 11
     learning_rate = 1e-7
     #tr_loss = [median_loss_1, median_loss_1]
     #pr_loss = [my_mse, median_loss_1]
@@ -245,8 +245,6 @@ if __name__ == '__main__':
 
             scores = []
             rocs = []
-            std_roc_par = []
-            roc_matrix = []
             for i in range(num_runs):
                 print('Run: ',i)
                 x = a['x'].astype(np.float32)
@@ -261,7 +259,6 @@ if __name__ == '__main__':
                 #reconstruct
                 roc, score, error_df, threshold_fixed, parallel_rocs = autoenc_predict(autoencoder,tx, ty, predict_loss)
                 std_roc_par.append(np.std(parallel_rocs))
-                roc_matrix.append(parallel_rocs)
                 scores.append(score)
                 rocs.append(roc)
             scores = np.array(scores)
@@ -270,10 +267,6 @@ if __name__ == '__main__':
             #error_df['pred'] =pred_y
             #conf_matrix = confusion_matrix(error_df.True_class, pred_y)
             #roc = roc_auc_score(ty, score, average=None)
-            roc_matrix = np.array(roc_matrix)
-            corr_matrix = np.corrcoef(roc_matrix.T)
-            pd.DataFrame(corr_matrix).to_csv('corr_mat_{}.csv'.format(itr))
-            corr_matrix = np.corrcoef(roc_matrix.T)
             std_roc_par_array = np.array(std_roc_par)
             roc = np.mean(np.array(rocs))
             print(roc)
@@ -353,4 +346,5 @@ if __name__ == '__main__':
                    '.'
                    + str(pr_loss[j].__name__)] = [stats.ttest_ind(store_values[:, i],store_values[:, j]).pvalue]
     p_sig = pd.DataFrame.from_dict(a_dict, orient='index')
-    p_sig.to_csv('significance_test_result.csv')
+    p_sig.to_csv('significance_test_result.csv', index=False)
+    p_sig.to_csv('significance_test_result.csv', index=False)

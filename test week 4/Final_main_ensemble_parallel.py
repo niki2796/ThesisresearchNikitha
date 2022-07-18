@@ -246,7 +246,6 @@ if __name__ == '__main__':
             scores = []
             rocs = []
             std_roc_par = []
-            roc_matrix = []
             for i in range(num_runs):
                 print('Run: ',i)
                 x = a['x'].astype(np.float32)
@@ -261,7 +260,6 @@ if __name__ == '__main__':
                 #reconstruct
                 roc, score, error_df, threshold_fixed, parallel_rocs = autoenc_predict(autoencoder,tx, ty, predict_loss)
                 std_roc_par.append(np.std(parallel_rocs))
-                roc_matrix.append(parallel_rocs)
                 scores.append(score)
                 rocs.append(roc)
             scores = np.array(scores)
@@ -270,10 +268,6 @@ if __name__ == '__main__':
             #error_df['pred'] =pred_y
             #conf_matrix = confusion_matrix(error_df.True_class, pred_y)
             #roc = roc_auc_score(ty, score, average=None)
-            roc_matrix = np.array(roc_matrix)
-            corr_matrix = np.corrcoef(roc_matrix.T)
-            pd.DataFrame(corr_matrix).to_csv('corr_mat_{}.csv'.format(itr))
-            corr_matrix = np.corrcoef(roc_matrix.T)
             std_roc_par_array = np.array(std_roc_par)
             roc = np.mean(np.array(rocs))
             print(roc)
@@ -353,4 +347,5 @@ if __name__ == '__main__':
                    '.'
                    + str(pr_loss[j].__name__)] = [stats.ttest_ind(store_values[:, i],store_values[:, j]).pvalue]
     p_sig = pd.DataFrame.from_dict(a_dict, orient='index')
-    p_sig.to_csv('significance_test_result.csv')
+    p_sig.to_csv('significance_test_result.csv', index=False)
+    p_sig.to_csv('significance_test_result.csv', index=False)
