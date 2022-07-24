@@ -212,7 +212,7 @@ def loss_4(a,b, return_mean=True):
 if __name__ == '__main__':
     num_runs = 10 # no. of roc runs
     start = 3
-    end = 60
+    end = 63
     skip = 3
     nb_epoch = 100
     batch_size = 64
@@ -226,6 +226,7 @@ if __name__ == '__main__':
     hidden_dim_1 = int(encoding_dim / 2)
     hidden_dim_2 = 4
     learning_rate = 1e-7
+    best_roc = 0
     #tr_loss = [median_loss_1, median_loss_1]
     #pr_loss = [my_mse, median_loss_1]
     tr_loss = [loss_1,  max_loss_1, min_loss_1, median_loss_1, loss_2, median_loss_2, loss_3, loss_4]
@@ -233,6 +234,7 @@ if __name__ == '__main__':
     store_values = np.zeros([int((end-start)/skip),len(tr_loss)])
     store_sd = np.zeros([int((end-start)/skip),len(tr_loss)])
     store_sd_par = np.zeros([int((end - start) / skip), len(tr_loss), num_runs])
+    store_average_corr = np.zeros([int((end-start)/skip),len(tr_loss)])
 
     count = 0
     for itr in tqdm(range(start, end, skip)):
@@ -272,8 +274,8 @@ if __name__ == '__main__':
             #roc = roc_auc_score(ty, score, average=None)
             roc_matrix = np.array(roc_matrix)
             corr_matrix = np.corrcoef(roc_matrix.T)
-            pd.DataFrame(corr_matrix).to_csv('corr_mat_{}.csv'.format(itr))
-            corr_matrix = np.corrcoef(roc_matrix.T)
+
+            #pd.DataFrame(corr_matrix).to_csv('corr_mat_{}_{}.csv'.format(itr,str(tr_loss[i].__name__)))
             std_roc_par_array = np.array(std_roc_par)
             roc = np.mean(np.array(rocs))
             print(roc)
@@ -281,6 +283,12 @@ if __name__ == '__main__':
             store_values[count][itr_loss] = roc
             store_sd[count][itr_loss] = roc_sd
             store_sd_par[count][itr_loss] = std_roc_par_array
+            store_average_corr[count][itr_loss] = ((np.sum(corr_matrix) - np.trace(corr_matrix))/((itr*itr)-itr))
+            if itr == (end - skip):
+                if roc > best_roc:
+                    best_roc = roc
+                    best_corr_matrix = corr_matrix
+                    best_train_loss_60 = str(tr_loss[itr_loss].__name__)
         count += 1
         np.save('stored_val.npy', store_values)
         np.save('stored_sd.npy', store_sd)
@@ -315,6 +323,7 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
         plt.savefig('loss_ens.png')
+
         fig1 = plt.figure()
         for i in range(0, store_sd.shape[1]):
             plt.plot(x_ax, store_sd[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
@@ -324,25 +333,38 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
         plt.savefig('ROC_SD.png')
+
         fig2 = plt.figure()
         for i in range(0, 4):
             plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
-        plt.title('ROC comparison of Multi dimensional MSE loss AGAINST Max MSE loss')
+        plt.title('ROC comparison for all the variants of loss1')
         plt.xlabel('Number of Ensembles')
         plt.ylabel('ROC')
         plt.legend()
         plt.show()
         plt.savefig('loss1_comparison.png')
+
+        fig3 = plt.figure()
         for i in range(4, 6):
             plt.plot(x_ax, store_values[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
-        plt.title('ROC comparison of Multi dimensional MSE loss AGAINST Max MSE loss')
+        plt.title('ROC comparison for all the variants of loss2')
         plt.xlabel('Number of Ensembles')
         plt.ylabel('ROC')
         plt.legend()
         plt.show()
         plt.savefig('loss2_comparison.png')
-    a_dict = {}
 
+        fig4 = plt.figure()
+        for i in range(0, store_average_corr.shape[1]):
+            plt.plot(x_ax, store_average_corr[:, i], label=str(tr_loss[i].__name__) + '-' + str(pr_loss[i].__name__))
+        plt.title('Average correlation between the ROCs')
+        plt.xlabel('Number of Ensembles')
+        plt.ylabel('Average correlation of ROC')
+        plt.legend()
+        plt.show()
+        plt.savefig('Average_ROC.png')
+
+    a_dict = {}
     for i in range(0, store_values.shape[1]):
         for j in range(i+1, store_values.shape[1]):
             a_dict[str(tr_loss[i].__name__)
@@ -354,3 +376,9 @@ if __name__ == '__main__':
                    + str(pr_loss[j].__name__)] = [stats.ttest_ind(store_values[:, i],store_values[:, j]).pvalue]
     p_sig = pd.DataFrame.from_dict(a_dict, orient='index')
     p_sig.to_csv('significance_test_result.csv')
+
+    fig5 = plt.figure()
+    ax = sns.heatmap(best_corr_matrix, linewidth=0.5, cmap ="Blues")
+    ax.set_title('Heatmap of ' + best_train_loss_60 + ' correlation matrix')
+    plt.savefig('Heatmap_corrmat_'+ best_train_loss_60 + '.png')
+
