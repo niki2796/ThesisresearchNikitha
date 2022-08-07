@@ -7,12 +7,13 @@ from sklearn.metrics import confusion_matrix, recall_score, accuracy_score, prec
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
 from threshold_calc import *
+from sklearn import preprocessing
 
 LABELS = ["Normal","Anomaly"]
 
 tf.random.set_seed(12312)
 np.random.seed(12312)
-num_runs = 40 #no. of ensembles
+num_runs = 25 #no. of ensembles
 scores = []
 rocs = []
 
@@ -20,20 +21,24 @@ for i in range(num_runs):
 
     print('Run: ',i)
 
-    a = np.load('qsar-biodeg.npz')
+    a = np.load('elevators.npz')
     x = a['x']
+    b = x.shape
+    b = b[-1]
     np.random.shuffle(x)
     bag =len(x)
     x = x[:bag]
+    x = preprocessing.normalize(x, norm='l2')
     y = np.zeros(len(x))
     tx = a['tx']
+    tx = preprocessing.normalize(tx, norm='l2')
     ty = a['ty']
     nb_epoch = 200
     batch_size = 64
     input_dim = x.shape[1]
-    encoding_dim = 15
-    hidden_dim_1 = int(encoding_dim / 2) #
-    hidden_dim_2 = 11
+    encoding_dim = b // 2
+    hidden_dim_1 = int(encoding_dim / 2)
+    hidden_dim_2 = hidden_dim_1 - 2
     learning_rate = 1e-7
 
     def autoencoder_model():
@@ -154,13 +159,6 @@ threshold_fixed = get_optimal_threshold(ty, score, steps=100, return_metrics=Fal
 pred_y = [1 if e > threshold_fixed else 0 for e in error_df.Reconstruction_error.values]
 error_df['pred'] =pred_y
 conf_matrix = confusion_matrix(error_df.True_class, pred_y)
-plt.figure(figsize=(4, 4))
-sns.heatmap(conf_matrix, xticklabels=LABELS, yticklabels=LABELS, annot=True, fmt="d");
-plt.title("Confusion matrix")
-plt.ylabel('True class')
-plt.xlabel('Predicted class')
-plt.savefig('cm.png')
-roc = roc_auc_score(ty, score, average=None)
 print(roc)
 
 #plot roc

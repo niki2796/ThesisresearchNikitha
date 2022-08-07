@@ -15,8 +15,8 @@ import tensorflow_probability as tfp
 
 LABELS = ["Normal","Anomaly"]
 
-tf.random.set_seed(1121)
-np.random.seed(1121)
+tf.random.set_seed(12312)
+np.random.seed(12312)
 
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     input_layer = tf.keras.layers.Input(shape=(input_dim, ))
@@ -108,7 +108,8 @@ def loss_1(a,b, return_mean=True):
     q=(q-a)**2
     if return_mean == False:
         return K.mean(q, axis=(0, -1))
-    return K.mean(q)
+    return K.mean(K.mean(q, axis = -1))
+    #return K.mean(q)
 
 def max_loss_1(a,b, return_mean=True):
     q=b
@@ -119,7 +120,8 @@ def max_loss_1(a,b, return_mean=True):
     q=(q-a)**2
     if return_mean == False:
         return K.max(K.mean(q, axis = -1), axis = 0)
-    return K.mean(K.max(K.mean(q, axis = -1), axis = 0))
+    #return K.mean(K.max(K.mean(q, axis = -1), axis = 0))
+    return K.max(K.mean(K.mean(q, axis = -1), axis = 1))
 
 def min_loss_1(a,b, return_mean=True):
     q=b
@@ -130,7 +132,8 @@ def min_loss_1(a,b, return_mean=True):
     q=(q-a)**2
     if return_mean == False:
         return K.min(K.mean(q, axis = -1), axis = 0)
-    return K.mean(K.min(K.mean(q, axis = -1), axis = 0))
+    #return K.mean(K.min(K.mean(q, axis = -1), axis = 0))
+    return K.min(K.mean(K.mean(q, axis = -1), axis = 1))
 
 def median_loss_1(a,b, return_mean=True):
     q=b
@@ -141,7 +144,8 @@ def median_loss_1(a,b, return_mean=True):
     q=(q-a)**2
     if return_mean == False:
         return tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0)
-    return K.mean(tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0))
+    return tfp.stats.percentile(K.mean(K.mean(q, axis = -1), axis = 1), q=50)
+    # return K.mean(tfp.stats.percentile(K.mean(q, axis = -1), q=50, axis = 0))
 
 def loss_2(a,b, return_mean=True):
     q=b
@@ -210,7 +214,7 @@ def loss_4(a,b, return_mean=True):
 
 
 if __name__ == '__main__':
-    num_runs = 10 # no. of roc runs
+    num_runs = 5 # no. of roc runs
     start = 3
     end = 63
     skip = 3
@@ -219,13 +223,28 @@ if __name__ == '__main__':
     data_set = 'gas-drift.npz'
     a = np.load(data_set)
     x = a['x'].astype(np.float32)
+    bx = x.shape
+    bx = bx[-1]
+    tx = a['tx'].astype(np.float32)
+    ty = a['ty']
     x = preprocessing.normalize(x, norm='l2')
     bag = len(x)
     input_dim = x.shape[1]
-    encoding_dim = 18
-    hidden_dim_1 = int(encoding_dim / 2) #
-    hidden_dim_2 = 8
+    encoding_dim = bx // 2
+    hidden_dim_1 = int(encoding_dim / 2)
+    hidden_dim_2 = hidden_dim_1 - 2
     learning_rate = 1e-7
+    best_roc = 0
+
+    text_to_file = " Total number of records: " + str(len(x)+len(tx)) + \
+                   "\n Shape of training data: " + str([str(val) for val in x.shape])  + \
+                   "\n Shape of test data: " + str([str(val) for val in tx.shape]) + \
+                   "\n Number of anomalies in text: " + str(ty.sum())
+
+    text_file = open("file_details.txt", "w")
+    text_file.write(text_to_file)
+    text_file.close()
+
     #tr_loss = [median_loss_1, median_loss_1]
     #pr_loss = [my_mse, median_loss_1]
     tr_loss = [loss_1,  max_loss_1, min_loss_1, median_loss_1, loss_2, median_loss_2, loss_3, loss_4]
@@ -292,8 +311,8 @@ if __name__ == '__main__':
         np.save('stored_val.npy', store_values)
         np.save('stored_sd.npy', store_sd)
         np.save('stored_sd_par.npy', store_sd_par)
-        x_ax = np.array([i for i in range(start, end, skip)])
 
+        x_ax = np.array([i for i in range(start, end, skip)])
 
         fig, axs = plt.subplots(4,2)
         i_ind = 0
@@ -380,4 +399,6 @@ if __name__ == '__main__':
     ax = sns.heatmap(best_corr_matrix, linewidth=0.5, cmap ="Blues")
     ax.set_title('Heatmap of ' + best_train_loss_60 + ' correlation matrix')
     plt.savefig('Heatmap_corrmat_'+ best_train_loss_60 + '.png')
+
+
 
