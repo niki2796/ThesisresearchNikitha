@@ -16,7 +16,7 @@ import tensorflow_probability as tfp
 LABELS = ["Normal","Anomaly"]
 
 tf.random.set_seed(12312)
-np.random.seed(1121)
+np.random.seed(12312)
 
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     input_layer = tf.keras.layers.Input(shape=(input_dim, ))

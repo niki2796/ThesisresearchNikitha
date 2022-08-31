@@ -132,8 +132,8 @@ def min_loss_1(a,b, return_mean=True):
     q=(q-a)**2
     if return_mean == False:
         return K.min(K.mean(q, axis = -1), axis = 0)
-    #return K.mean(K.min(K.mean(q, axis = -1), axis = 0))
-    return K.min(K.mean(K.mean(q, axis = -1), axis = 1))
+    return K.mean(K.min(K.mean(q, axis = -1), axis = 0))
+    #return K.min(K.mean(K.mean(q, axis = -1), axis = 1))
 
 def median_loss_1(a,b, return_mean=True):
     q=b
@@ -326,8 +326,6 @@ if __name__ == '__main__':
             if i_ind == 4:
                 j_ind += 1
                 i_ind = 0
-        for ax in axs.flat:
-            ax.label_outer()
         fig.suptitle('Number of Ensembles vs Parallel ROC Std')
         fig.tight_layout()
         fig.savefig('std_par_roc.png')

@@ -132,8 +132,8 @@ def min_loss_1(a,b, return_mean=True):
     q=(q-a)**2
     if return_mean == False:
         return K.min(K.mean(q, axis = -1), axis = 0)
-    #return K.mean(K.min(K.mean(q, axis = -1), axis = 0))
-    return K.min(K.mean(K.mean(q, axis = -1), axis = 1))
+    return K.mean(K.min(K.mean(q, axis = -1), axis = 0))
+    #return K.min(K.mean(K.mean(q, axis = -1), axis = 1))
 
 def median_loss_1(a,b, return_mean=True):
     q=b
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     bx = bx[-1]
     tx = a['tx'].astype(np.float32)
     ty = a['ty']
-    x = preprocessing.normalize(x, norm='l2')
+    #x = preprocessing.normalize(x, norm='l2')
     bag = len(x)
     input_dim = x.shape[1]
     encoding_dim = bx // 2
@@ -270,12 +270,12 @@ if __name__ == '__main__':
             for i in range(num_runs):
                 print('Run: ',i)
                 x = a['x'].astype(np.float32)
-                x = preprocessing.normalize(x, norm='l2')
+                #x = preprocessing.normalize(x, norm='l2')
                 np.random.shuffle(x)
                 x = x[:bag]
                 y = np.zeros(len(x))
                 tx = a['tx'].astype(np.float32)
-                tx = preprocessing.normalize(tx, norm='l2')
+                #tx = preprocessing.normalize(tx, norm='l2')
                 ty = a['ty']
                 autoencoder = autoenc_train(training_loss, x, nb_epoch, batch_size,num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2)
                 #reconstruct
@@ -326,8 +326,6 @@ if __name__ == '__main__':
             if i_ind == 4:
                 j_ind += 1
                 i_ind = 0
-        for ax in axs.flat:
-            ax.label_outer()
         fig.suptitle('Number of Ensembles vs Parallel ROC Std')
         fig.tight_layout()
         fig.savefig('std_par_roc.png')

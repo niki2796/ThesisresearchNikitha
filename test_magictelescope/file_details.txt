@@ -1,4 +1,0 @@
- Total number of records: 16031
- Shape of training data: ['8633', '11']
- Shape of test data: ['7398', '11']
- Number of anomalies in text: 3699

@@ -18,6 +18,36 @@ LABELS = ["Normal","Anomaly"]
 tf.random.set_seed(1121)
 np.random.seed(1121)
 
+def circle(n=10000, R=1.0, dim=5):
+    #x = np.random.uniform(-R, R, (n, dim))
+    x = np.random.vonmises(0, R, (n, dim))
+    r = np.sum(x ** 2, axis=-1)
+    x = x[r < R ** 2]
+
+    if len(x) < n:
+        x = np.concatenate((x, circle(n=n - len(x), R=R, dim=dim)), axis=0)
+
+    return x
+
+def donut(n=10000, R1=3.0, R2=2.0, dim=5):
+    #x = np.random.uniform(-R2 , R2, (n, dim))
+    x = np.random.vonmises(0, R2, (n, dim))
+    r = np.sum(x ** 2, axis=-1)
+    x = x[r < R2 ** 2]
+    r = np.sum(x ** 2, axis=-1)
+    x = x[r > R1 ** 2]
+
+    if len(x) < n:
+        x = np.concatenate((x, donut(n=n - len(x), R1=R1, R2=R2, dim=dim)), axis=0)
+
+    return x
+
+
+def linear(n=10000, l1=1.0, l2=3.0, dim=5):
+    x = np.random.uniform(l1, l2, (n, dim))
+    #x = np.random.vonmises(0, R2, (n, dim))
+    return x
+
 def autoencoder_model(num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2):
     input_layer = tf.keras.layers.Input(shape=(input_dim, ))
     encoder = [None]*num_parallel
@@ -120,8 +150,8 @@ def max_loss_1(a,b, return_mean=True):
     q=(q-a)**2
     if return_mean == False:
         return K.max(K.mean(q, axis = -1), axis = 0)
-    #return K.mean(K.max(K.mean(q, axis = -1), axis = 0))
-    return K.max(K.mean(K.mean(q, axis = -1), axis = 1))
+    return K.mean(K.max(K.mean(q, axis = -1), axis = 0))
+    #return K.max(K.mean(K.mean(q, axis = -1), axis = 1))
 
 def min_loss_1(a,b, return_mean=True):
     q=b
@@ -220,17 +250,17 @@ if __name__ == '__main__':
     skip = 3
     nb_epoch = 200
     batch_size = 64
-    data_set = 'mnist.npz'
-    a = np.load(data_set)
-    x = a['x'].astype(np.float32)
+
+    x = linear(n=10000, l1=1.0, l2=3.0, dim=2)
+    y = np.zeros(len(x))
+    tx = np.concatenate((linear(n=2000, l1=1.0, l2=3.0, dim=2), linear(n=2000, l1=4.0, l2=6.0, dim=2)))
+    ty = np.concatenate((np.zeros(2000), np.ones(2000)))
+
+    bag = len(x)
     bx = x.shape
     bx = bx[-1]
-    tx = a['tx'].astype(np.float32)
-    ty = a['ty']
-    x = preprocessing.normalize(x, norm='l2')
-    bag = len(x)
     input_dim = x.shape[1]
-    encoding_dim = bx // 2
+    encoding_dim = 15
     hidden_dim_1 = int(encoding_dim / 2)
     hidden_dim_2 = hidden_dim_1 - 2
     learning_rate = 1e-7
@@ -269,14 +299,7 @@ if __name__ == '__main__':
             roc_matrix = []
             for i in range(num_runs):
                 print('Run: ',i)
-                x = a['x'].astype(np.float32)
-                x = preprocessing.normalize(x, norm='l2')
-                np.random.shuffle(x)
-                x = x[:bag]
-                y = np.zeros(len(x))
-                tx = a['tx'].astype(np.float32)
-                tx = preprocessing.normalize(tx, norm='l2')
-                ty = a['ty']
+
                 autoencoder = autoenc_train(training_loss, x, nb_epoch, batch_size,num_parallel, input_dim, encoding_dim, hidden_dim_1, hidden_dim_2)
                 #reconstruct
                 roc, score, error_df, threshold_fixed, parallel_rocs = autoenc_predict(autoencoder,tx, ty, predict_loss)
@@ -398,5 +421,11 @@ if __name__ == '__main__':
     ax.set_title('Heatmap of ' + best_train_loss_60 + ' correlation matrix')
     plt.savefig('Heatmap_corrmat_'+ best_train_loss_60 + '.png')
 
+    fig6 = plt.figure()
+    plt.scatter(x[:,0],x[:,1])
+    plt.savefig('traindata.png')
 
+    fig7 = plt.figure()
+    plt.scatter(tx[:,0],tx[:,1])
+    plt.savefig('testdata.png')
 
